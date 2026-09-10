@@ -1,0 +1,76 @@
+name: Monitor esame mediatori
+
+on:
+  schedule:
+    # GitHub ragiona solo in UTC, quindi qui c'e' l'unione degli orari estivi
+    # (CEST, UTC+2) e invernali (CET, UTC+1). Lo step "gate" qui sotto lascia
+    # passare solo le esecuzioni che corrispondono davvero alle 9, 11, 14, 16,
+    # 18 e 20 ora italiana, cosi' il cambio dell'ora legale non sposta nulla.
+    - cron: "0 7,8,9,10,12,13,14,15,16,17,18,19 * * *"
+  workflow_dispatch: # avvio manuale dal tab Actions, sempre consentito
+
+permissions:
+  contents: write # serve per ricommittare lo snapshot
+
+concurrency:
+  group: monitor-esame
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Verifica orario italiano
+        id: gate
+        run: |
+          ORA=$(TZ=Europe/Rome date +%H)
+          echo "Ora italiana: $ORA"
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "Avvio manuale: procedo."
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          elif echo " 09 11 14 16 18 20 " | grep -q " $ORA "; then
+            echo "Slot valido: procedo."
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "Fuori dagli slot previsti: salto il controllo."
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@v4
+        if: steps.gate.outputs.run == 'true'
+
+      - uses: actions/setup-python@v5
+        if: steps.gate.outputs.run == 'true'
+        with:
+          python-version: "3.12"
+
+      - name: Cache browser Playwright
+        if: steps.gate.outputs.run == 'true'
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-chromium-v1
+
+      - name: Installa dipendenze
+        if: steps.gate.outputs.run == 'true'
+        run: |
+          pip install -r requirements.txt
+          python -m playwright install --with-deps chromium
+
+      - name: Controlla il portale
+        if: steps.gate.outputs.run == 'true'
+        env:
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python monitor.py
+
+      - name: Salva lo stato
+        if: steps.gate.outputs.run == 'true'
+        run: |
+          git config user.name "monitor-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add state/
+          git diff --quiet --cached || git commit -m "snapshot $(date -u +%F_%H:%M)"
+          git pull --rebase --autostash || true
+          git push
