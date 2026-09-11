@@ -6,7 +6,7 @@ on:
     # (CEST, UTC+2) e invernali (CET, UTC+1). Lo step "gate" qui sotto lascia
     # passare solo le esecuzioni che corrispondono davvero alle 9, 11, 14, 16,
     # 18 e 20 ora italiana, cosi' il cambio dell'ora legale non sposta nulla.
-    - cron: "0 7,8,9,10,12,13,14,15,16,17,18,19 * * *"
+    - cron: "17 7-19 * * *"
   workflow_dispatch: # avvio manuale dal tab Actions, sempre consentito
 
 permissions:
@@ -29,7 +29,7 @@ jobs:
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             echo "Avvio manuale: procedo."
             echo "run=true" >> "$GITHUB_OUTPUT"
-          elif echo " 09 11 14 16 18 20 " | grep -q " $ORA "; then
+          elif echo " 09 10 11 12 13 14 15 16 17 18 19 20 " | grep -q " $ORA "; then
             echo "Slot valido: procedo."
             echo "run=true" >> "$GITHUB_OUTPUT"
           else
