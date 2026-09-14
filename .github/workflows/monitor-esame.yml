@@ -2,11 +2,13 @@ name: Monitor esame mediatori
 
 on:
   schedule:
+    # Obiettivo: ogni 30 minuti, dalle 9 alle 18 italiane, da lunedi' a venerdi'.
     # GitHub ragiona solo in UTC, quindi qui c'e' l'unione degli orari estivi
-    # (CEST, UTC+2) e invernali (CET, UTC+1). Lo step "gate" qui sotto lascia
-    # passare solo le esecuzioni che corrispondono davvero alle 9, 11, 14, 16,
-    # 18 e 20 ora italiana, cosi' il cambio dell'ora legale non sposta nulla.
-    - cron: "17 7-19 * * *"
+    # (CEST, UTC+2) e invernali (CET, UTC+1): 7-17 UTC. Lo step "gate" qui sotto
+    # lascia passare solo le esecuzioni che cadono davvero nella fascia italiana,
+    # cosi' il cambio dell'ora legale non sposta nulla.
+    # I minuti :17 e :47 evitano l'ora piena, che GitHub congestiona e a volte salta.
+    - cron: "17,47 7-17 * * 1-5"
   workflow_dispatch: # avvio manuale dal tab Actions, sempre consentito
 
 permissions:
@@ -25,11 +27,15 @@ jobs:
         id: gate
         run: |
           ORA=$(TZ=Europe/Rome date +%H)
-          echo "Ora italiana: $ORA"
+          GIORNO=$(TZ=Europe/Rome date +%u)   # 1=lunedi' ... 7=domenica
+          echo "Ora italiana: $ORA — giorno: $GIORNO"
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             echo "Avvio manuale: procedo."
             echo "run=true" >> "$GITHUB_OUTPUT"
-          elif echo " 09 10 11 12 13 14 15 16 17 18 19 20 " | grep -q " $ORA "; then
+          elif [ "$GIORNO" -gt 5 ]; then
+            echo "Weekend: salto il controllo."
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          elif echo " 09 10 11 12 13 14 15 16 17 18 " | grep -q " $ORA "; then
             echo "Slot valido: procedo."
             echo "run=true" >> "$GITHUB_OUTPUT"
           else
