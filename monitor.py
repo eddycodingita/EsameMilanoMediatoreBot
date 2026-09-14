@@ -223,7 +223,7 @@ def main() -> int:
         elenco = "\n".join(f"• {fmt(r)}" for r in sorted(rows.values(), key=lambda r: r["data"]))
         tg_send(
             f"✅ <b>Monitor attivo</b> — {len(rows)} sessioni in pagina.\n"
-            f"Controlli ogni ora dalle 9 alle 20.\n\n{elenco}\n\n{URL}",
+            f"Controlli ogni 30 minuti, 9-18, lun-ven.\n\n{elenco}\n\n{URL}",
             SCREENSHOT,
         )
         return 0
