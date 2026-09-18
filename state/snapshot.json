@@ -1,7 +1,7 @@
 {
   "failures": 0,
   "first_run": false,
-  "last_ok": "17/09/2026 12:38",
+  "last_ok": "18/09/2026 12:16",
   "rows": {
     "01/10/2026|09:15|Esame Mediatori Immobiliari 01/10/'26 Mattina": {
       "data": "01/10/2026",
@@ -18,6 +18,14 @@
       "luogo": "Milano, Via Meravigli 9/B",
       "ora": "09:15",
       "totali": 9
+    },
+    "08/10/2026|09:15|Esame Mediatori Immobiliari 08/10/'26 Mattina": {
+      "data": "08/10/2026",
+      "label": "Esame Mediatori Immobiliari 08/10/'26 Mattina",
+      "liberi": 1,
+      "luogo": "Milano, Via Meravigli 9/B",
+      "ora": "09:15",
+      "totali": 10
     },
     "22/09/2026|09:15|Esame Mediatori Immobiliari 22/09/'26 Mattina": {
       "data": "22/09/2026",
