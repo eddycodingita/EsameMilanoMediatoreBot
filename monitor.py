@@ -16,14 +16,16 @@ import re
 import sys
 import urllib.parse
 import urllib.request
-from datetime import datetime, timezone
+from datetime import datetime
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 from playwright.sync_api import sync_playwright
 
 URL = "https://eolmi.infocamere.it/fnmiWeb/immobiliari?client=milano"
 STATE_FILE = Path("state/snapshot.json")
 SCREENSHOT = Path("screenshot.png")
+TZ_ITALIA = ZoneInfo("Europe/Rome")
 
 TG_TOKEN = os.environ.get("TELEGRAM_TOKEN", "")
 TG_CHAT = os.environ.get("TELEGRAM_CHAT_ID", "")
@@ -171,6 +173,21 @@ def scrape() -> dict[str, dict]:
     return sessioni
 
 
+# --------------------------------------------------------------------------- #
+# Formattazione
+# --------------------------------------------------------------------------- #
+def ordina(row: dict):
+    """Chiave di ordinamento cronologico: anno, mese, giorno, ora."""
+    try:
+        g, m, a = re.split(r"[/-]", row["data"])
+        a = int(a)
+        if a < 100:
+            a += 2000
+        return (a, int(m), int(g), row.get("ora", ""))
+    except (ValueError, KeyError):
+        return (9999, 99, 99, row.get("ora", ""))
+
+
 def fmt(row: dict) -> str:
     base = f"{row['data']}"
     if row["ora"]:
@@ -185,7 +202,7 @@ def fmt(row: dict) -> str:
 # --------------------------------------------------------------------------- #
 def main() -> int:
     state = load_state()
-    now = datetime.now(timezone.utc).astimezone().strftime("%d/%m/%Y %H:%M")
+    now = datetime.now(TZ_ITALIA).strftime("%d/%m/%Y %H:%M")
 
     try:
         rows = scrape()
@@ -220,10 +237,10 @@ def main() -> int:
     if state.get("first_run") or not old:
         state["first_run"] = False
         save_state(state)
-        elenco = "\n".join(f"• {fmt(r)}" for r in sorted(rows.values(), key=lambda r: r["data"]))
+        elenco = "\n".join(f"• {fmt(r)}" for r in sorted(rows.values(), key=ordina))
         tg_send(
             f"✅ <b>Monitor attivo</b> — {len(rows)} sessioni in pagina.\n"
-            f"Controlli ogni 30 minuti, 9-18, lun-ven.\n\n{elenco}\n\n{URL}",
+            f"Controlli ogni 15 minuti, 9-18, lun-ven.\n\n{elenco}\n\n{URL}",
             SCREENSHOT,
         )
         return 0
@@ -252,21 +269,21 @@ def main() -> int:
     msg = [titolo, ""]
     if nuove:
         msg.append("<b>Sessioni nuove:</b>")
-        msg += [f"➕ {fmt(r)}" for r in sorted(nuove, key=lambda r: r["data"])]
+        msg += [f"➕ {fmt(r)}" for r in sorted(nuove, key=ordina)]
         msg.append("")
     if liberati:
         msg.append("<b>Posti liberati:</b>")
-        msg += [f"🟢 {fmt(r)}" for r in sorted(liberati, key=lambda r: r["data"])]
+        msg += [f"🟢 {fmt(r)}" for r in sorted(liberati, key=ordina)]
         msg.append("")
     if sparite:
         msg.append("<b>Non più in elenco:</b>")
-        msg += [f"➖ {fmt(r)}" for r in sorted(sparite, key=lambda r: r["data"])]
+        msg += [f"➖ {fmt(r)}" for r in sorted(sparite, key=ordina)]
         msg.append("")
 
     disponibili = [r for r in rows.values() if r["liberi"] > 0]
     if disponibili:
         msg.append("<b>Prenotabili ora:</b>")
-        msg += [f"👉 {fmt(r)}" for r in sorted(disponibili, key=lambda r: r["data"])]
+        msg += [f"👉 {fmt(r)}" for r in sorted(disponibili, key=ordina)]
     else:
         msg.append("<i>Al momento nessuna sessione ha posti liberi.</i>")
 
