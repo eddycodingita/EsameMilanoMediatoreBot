@@ -2,7 +2,7 @@ name: Monitor esame mediatori
 
 on:
   schedule:
-    - cron: "17 7-19 * * *"
+    - cron: "*/15 7-17 * * 1-5" # ogni 15 min, lun-ven (orario UTC, il filtro sotto usa l'ora italiana)
   repository_dispatch:
     types: [check-esame]
   workflow_dispatch: # avvio manuale dal tab Actions, sempre consentito
@@ -16,7 +16,7 @@ concurrency:
 
 jobs:
   check:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
       - name: Verifica orario italiano
@@ -85,17 +85,6 @@ jobs:
           done
           echo "Impossibile salvare lo snapshot dopo 3 tentativi."
           exit 1
-
-      - name: Conferma controllo su Telegram
-        if: steps.gate.outputs.run == 'true'
-        env:
-          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-        run: |
-          curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage" \
-            -d chat_id="${TELEGRAM_CHAT_ID}" \
-            -d disable_notification=true \
-            --data-urlencode text="✅ Controllo delle $(TZ=Europe/Rome date +%H:%M) eseguito"
 
       - name: Avviso errore su Telegram
         if: failure() && steps.gate.outputs.run == 'true'
