@@ -76,3 +76,24 @@ jobs:
           git diff --quiet --cached || git commit -m "snapshot $(date -u +%F_%H:%M)"
           git pull --rebase --autostash || true
           git push
+
+      - name: Conferma controllo su Telegram
+        if: steps.gate.outputs.run == 'true'
+        env:
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage" \
+            -d chat_id="${TELEGRAM_CHAT_ID}" \
+            -d disable_notification=true \
+            --data-urlencode text="✅ Controllo delle $(TZ=Europe/Rome date +%H:%M) eseguito"
+
+      - name: Avviso errore su Telegram
+        if: failure() && steps.gate.outputs.run == 'true'
+        env:
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage" \
+            -d chat_id="${TELEGRAM_CHAT_ID}" \
+            --data-urlencode text="⚠️ Il controllo delle $(TZ=Europe/Rome date +%H:%M) è fallito, guarda il tab Actions"
