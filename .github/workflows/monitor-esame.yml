@@ -74,8 +74,17 @@ jobs:
           git config user.email "actions@users.noreply.github.com"
           git add state/
           git diff --quiet --cached || git commit -m "snapshot $(date -u +%F_%H:%M)"
-          git pull --rebase --autostash || true
-          git push
+          for tentativo in 1 2 3; do
+            if git pull --rebase -X theirs && git push; then
+              echo "Snapshot salvato."
+              exit 0
+            fi
+            echo "Conflitto al tentativo $tentativo, riprovo..."
+            git rebase --abort 2>/dev/null || true
+            sleep 5
+          done
+          echo "Impossibile salvare lo snapshot dopo 3 tentativi."
+          exit 1
 
       - name: Conferma controllo su Telegram
         if: steps.gate.outputs.run == 'true'
